@@ -1,0 +1,156 @@
+from tkinter import *
+import os, re, requests, smtplib
+from bs4 import BeautifulSoup
+from tkinter import filedialog
+
+def fenetre_choix(entry_file):
+    os.chdir("C:/Users\Alexis\Documents")
+    nom_du_fichier = entry_file.get() #Récupere la valeur de la Saisie de la Campagne
+    fenetre1.withdraw()  # Réduit la fenêtre (sans la détruire)
+
+    fenetre2 = Toplevel() #Fenetre de choix
+    fenetre2.title("Application de mailing") #Titre de la fenetre
+    fenetre2.resizable(width=FALSE, height=False) #On bloque la redim* de la fenre
+    fenetre2.geometry('800x400+200+100')
+
+    def add_item(entry_file, enter1): #fonction Ajout d'une ligne dans la listbox
+        listbox1.insert(END, enter1.get())
+        nom_du_fichier = entry_file.get()
+        nom_du_fichier = open(nom_du_fichier + ".csv", "a")
+        nom_du_fichier.write(enter1.get() + "\n")
+        nom_du_fichier.close()
+
+    def delete_item(entry_file): #fonction suppression d'une ligne dans la listbox et dans le fichier
+        nom_du_fichier = entry_file.get()#Récupération du nom du fichier
+        index = listbox1.curselection()#Récupérattion du n° d'index de la selection
+        mot = listbox1.get(index)#On récupére la chaine de charactère a supprimer grace au n° d'index
+        print("Index=", index, " Mot=", mot)
+        with open(nom_du_fichier + ".csv", "r") as f:#On ouvre le fichier en lecture
+            lines = f.readlines()#on stock le fichier ligne par ligne dans un tableau
+            lines.remove(mot)#On supprime la chaine correspondante
+            with open(nom_du_fichier + "new.csv", "w") as new_f:#On crée un nouveau fichier temporaire
+                for line in lines:#Par ligne dans le tableau qui comprend la suppression
+                    new_f.write(line)#On récrit le contenu dans le nouveau fichier
+        os.remove(nom_du_fichier + ".csv")#On supprime le fichier non modifier
+        os.rename(nom_du_fichier + "new.csv", nom_du_fichier + ".csv")#On renomme le nouveau fichier, pour lui donner le nom du fichier de base
+        listbox1.delete(listbox1.curselection()) #Suppression de la ligne sélectionenr en listbox
+
+    def revenir_nom_du_fichier():
+        fenetre2.destroy()
+        fenetre1.deiconify()  # Remet la fenêtre principale
+
+    def import_csv(entry_file):
+        def concat_csv(entry_file_csv, entry_file):#Permet de concatener deux fichier csv
+            nom_du_csv = entry_file_csv.get()#On récupère la valeur du fichier à concatener
+            nom_du_fichier = entry_file.get()#On récupére le contenu du fichier csv de base
+            fenetre_choix_csv.destroy()#On détruit la fenetre de choix pour le fichier a concatener
+            os.chdir("C:/Users\Alexis\Documents")  # Charge le chemin d'import
+            with open(nom_du_csv + ".csv", "r") as f:  # On ouvre le fichier en lecture
+                lines = f.readlines()# on stock le deuxieme fichier ligne par ligne dans un tableau
+                with open(nom_du_fichier + ".csv", "a") as new_f:  # On ouvre en mode ajout le fichier de base
+                    for line in lines:# Par ligne dans le tableau
+                        new_f.write(line)# On récrit le contenu dans le fichier de base
+                        listbox1.insert(END, line)#On insère les nouvelles valeurs dans la listbox afin de rafraichir l'affichage après l'ajout
+            fenetre2.deiconify()#On refait apparaitre la fenetre2
+
+
+        fenetre2.withdraw()#On rend invisible la fenetre2
+
+        fenetre_choix_csv = Toplevel()#On crée la fenetre de choix pour le csv a concatener
+        fenetre_choix_csv.title("Import CSV")  # Titre de la fenetre
+        fenetre_choix_csv.resizable(width=FALSE, height=False)  # On bloque la redim* de la fenre
+        fenetre_choix_csv.geometry('250x100+470+250')#On donne les dimensions de la fenetre
+        label_csv = Label(fenetre_choix_csv, text='Selectionnez votre fichier a importer')#le label
+        label_csv.place(x=25, y=20, width=200)#La position du label
+        button_csv_ok = Button(fenetre_choix_csv, text='Ok', command=lambda: concat_csv(entry_file_csv, entry_file))#Le clique sur Ok déclanche la fonction de fusion de csv
+        button_csv_ok.place(x=100, y=60, width=50)#Position du bouton
+        entry_file_csv = StringVar()#La variable qui stockera le nom de notre fichier a concatener
+        entry_file_csv = Entry(fenetre_choix_csv, textvariable=entry_file_csv)#Notre entrez pour saisir le champ
+        entry_file_csv.insert(0, '')#le contenu
+        entry_file_csv.place(x=90, y=40, width=70)#La position de notre entry
+
+    def supp_doublon(entry_file):
+        nom_du_fichier = entry_file.get()
+        ''''chemin du fichier où supprimer les doublons'''
+        os.chdir("C:/Users\Alexis\Documents")
+        if not os.path.isfile(nom_du_fichier + '.csv'):
+            sys.exit("Le chemin {} spécifié n'est pas un fichier".format(nom_du_fichier))
+
+        s = set()
+
+        with open(nom_du_fichier, 'r') as f:
+            for line in f:
+                if line.strip('\n'):
+                    s.add(line)
+
+        return s
+
+
+    listbox1 = Listbox(fenetre2, width=30, height=10)
+    listbox1.place(x=200, y=90, width=400)
+    try:
+        f = open(nom_du_fichier + ".csv", "x")
+    except IOError:
+        print
+        'file already exists'
+        nom_du_fichier = open(nom_du_fichier + ".csv", "r") # On ouvre le fichier csv en lecture
+        lignes = nom_du_fichier.readlines() # On récupère les valeurs ligne par ligne
+        for ligne in lignes:  # Pour chaque ligne dans ligne
+            listbox1.insert(END, ligne) #on les inssère une à une a la fin dans la listbox
+        nom_du_fichier.close() #fermeture du fichier
+
+
+
+    yscroll = Scrollbar(command=listbox1.yview, orient=VERTICAL)
+    yscroll.grid(row=0, column=1, sticky=N + S)
+    listbox1.configure(yscrollcommand=yscroll.set)
+
+    enter1 = Entry(fenetre2, width=20)
+    enter1.insert(0, '')
+    enter1.place(x=200, y=255, width=400)
+
+    button = Button(fenetre2, text='Ajouter', command=lambda: add_item(entry_file, enter1))
+    button.place(x=200, y=275, width=400)
+
+    button1 = Button(fenetre2, text='Supprimer', command=lambda: delete_item(entry_file))
+    button1.place(x=200, y=300, width=400)
+
+    button3 = Button(fenetre2, text='Retour', command=lambda: revenir_nom_du_fichier())
+    button3.place(x=30, y=350, width=50)
+
+    button4 = Button(fenetre2, text='Import CSV', command=lambda: import_csv(entry_file))
+    button4.place(x=200, y=50, width=80)
+
+    button5 = Button(fenetre2, text='Suppression des doublons', command=lambda: supp_doublon(entry_file))
+    button5.place(x=325, y=50, width=150)
+
+    button6 = Button(fenetre2, text='Validation')
+    button6.place(x=520, y=50, width=80)
+    fenetre2.mainloop()
+
+
+
+
+
+
+fenetre1 = Tk() #Fenetre Principal
+fenetre1.title("Application de mailing") #Titre pour la fenetre principal
+fenetre1.resizable(width=FALSE, height=False) #On bloque la redimension de la fenetre
+fenetre1.geometry('400x200+450+200') #Taille de la fenetre et sa posistion dans l'ecran
+
+entry_file = StringVar() #Variable qui récupère la saisie du texte de l'Entrez
+entry_file = Entry(fenetre1, textvariable=entry_file, justify='center') #Entrez pour la saisie
+entry_file.place(x=148, y=50, width=110) #Place la fenetre de saisie et définis la taille
+
+label_de_campagne = StringVar() #Label qui indique la zone de saisie
+label_de_campagne = Label(fenetre1, text="Nom de la Campagne", justify='center') #Contient les lignes du label
+label_de_campagne.place(x=142, y=30) #Position du label
+
+# On affiche le Boutton QUitter avec sa commande permettant de fermer la fenêtre principal
+bouton_lancer = Button(fenetre1, text="Run", command=lambda: fenetre_choix(entry_file))
+bouton_lancer.pack(side=BOTTOM, pady=10, padx=10) #Taille du Bouton Run
+bouton_lancer.place(x='185', y='75') #Position du Run
+
+os.chdir("C:/Users\Alexis\Documents") #Charge le chemin d'import
+fenetre1.deiconify()# Remet la fenêtre principale
+fenetre1.mainloop()# On démarre la boucle Tkinter qui s'interompt quand on ferme la fenêtre
